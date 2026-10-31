@@ -34,6 +34,16 @@
           "locationWhenInUsePermission": "Swipe Clean gebruikt je locatie om bij een foto de plaatsnaam te tonen."
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "57e6b4e3-2881-4695-8fbe-f3bdbd7a0cf3"
+      }
+    },
+    "owner": "sandervdhs-team",
+    "updates": {
+      "url": "https://u.expo.dev/57e6b4e3-2881-4695-8fbe-f3bdbd7a0cf3"
+    },
+    "runtimeVersion": "exposdk:58.0.0"
   }
 }

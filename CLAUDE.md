@@ -24,8 +24,8 @@ Lees ook `AGENTS.md` (Expo-regels) en `README.md` (functies en structuur).
 - In de vorige sessie blokkeerde het netwerk `*.expo.dev`; gebruik `EXPO_OFFLINE=1` voor `expo install`/`export` als dat nog zo is.
 
 ## Status en volgende stappen
-1. De gebruiker heeft een Expo-token toegevoegd als **netwerk-secret** (Bearer, `*.expo.dev`). De proxy voegt het Authorization-header toe; `EXPO_TOKEN` zelf is mogelijk niet als variabele zichtbaar. Test `npx eas-cli@latest whoami` (zo nodig met een dummy-`EXPO_TOKEN` zodat de CLI een verzoek doet).
-2. `eas init` (projectId in app.json) → `eas update --branch preview` → geef de gebruiker de link/QR voor Expo Go.
-3. Lukt het uploaden niet, meld dan precies welk domein geblokkeerd is (bijv. `storage.googleapis.com`).
-4. Daarna: testchecklist voor de gebruiker, en het burst-wisgedrag controleren.
-5. Open ideeën: maximum op "later" (bijv. na 3 keer een keuze afdwingen).
+- **Gepubliceerd** (EAS Update): project `@sandervdhs-team/swipe-clean` (projectId in `app.json`), branch + kanaal `preview`, `runtimeVersion` = `exposdk:58.0.0` (vereist voor Expo Go; geen `ios.runtimeVersion`-override toevoegen).
+- Expo Go-link: `exp://u.expo.dev/57e6b4e3-2881-4695-8fbe-f3bdbd7a0cf3?channel-name=preview&runtime-version=exposdk%3A58.0.0`
+- Nieuwe versie publiceren: `EXPO_TOKEN=dummy npx eas-cli@latest update --branch preview --environment preview --platform ios --non-interactive --message "..."` (proxy vult het echte token in).
+1. Testchecklist voor de gebruiker, en het burst-wisgedrag controleren.
+2. Open ideeën: maximum op "later" (bijv. na 3 keer een keuze afdwingen).
