@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { AppState, StyleSheet, View } from 'react-native';
+import { Alert, AppState, StyleSheet, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
@@ -86,7 +86,19 @@ function SwipeScreen() {
 
   // Herinnering bij elke 50 items in de prullenbak.
   const trashCount = deck.trash.size;
+  const explained = useRef(false);
   useEffect(() => {
+    // Eerste keer iets in de prullenbak: uitleggen dat wissen pas bij legen gebeurt.
+    if (trashCount === 1 && !explained.current) {
+      explained.current = true;
+      setToast({
+        key: Date.now(),
+        text: 'In de prullenbak gezet. Leeg de prullenbak om echt te wissen.',
+        action: { label: 'Bekijken', onPress: () => setTrashOpen(true) },
+      });
+      lastReminder.current = 0;
+      return;
+    }
     const bucket = Math.floor(trashCount / TRASH_REMINDER_EVERY);
     if (bucket > lastReminder.current) {
       setToast({
@@ -103,6 +115,13 @@ function SwipeScreen() {
   const empty = async () => {
     const res = await deck.emptyTrash();
     if (!res) return;
+    if ('error' in res) {
+      Alert.alert(
+        'Wissen is niet gelukt',
+        `iOS heeft de foto's niet verwijderd. Controleer of de app volledige toegang heeft tot je foto's (Instellingen › Privacy › Foto's).\n\nDetails: ${res.error}`,
+      );
+      return;
+    }
     setTotals({ freedBytes: getStat('freedBytes'), deletedCount: getStat('deletedCount') });
     setTrashOpen(false);
     // Wacht tot het prullenbak-scherm dicht is (iOS toont één modal tegelijk).

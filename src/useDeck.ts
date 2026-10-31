@@ -8,6 +8,8 @@ import { randomInt, shuffle } from './format';
 export type SwipeAction = 'keep' | 'trash' | 'later';
 type HistoryEntry = { id: string; action: SwipeAction };
 
+export type EmptyResult = { count: number; bytes: number } | { error: string } | null;
+
 export type Phase = 'loading' | 'ready' | 'error';
 
 const LATER_MIN_GAP = 10;
@@ -175,14 +177,17 @@ export function useDeck(enabled: boolean) {
   }, []);
 
   /** Echt verwijderen uit de galerij. iOS toont één bevestigingsvenster. */
-  const emptyTrash = useCallback(async (): Promise<{ count: number; bytes: number } | null> => {
+  const emptyTrash = useCallback(async (): Promise<EmptyResult> => {
     const entries = [...trashRef.current.entries()];
     if (!entries.length) return null;
     const ids = entries.map(([id]) => id);
     try {
       await deleteAssets(ids);
-    } catch {
-      return null; // Geannuleerd in het iOS-venster.
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      // 3072 = PHPhotosErrorUserCancelled: gebruiker tikte "Annuleer" in het iOS-venster.
+      if (/cancel|3072/i.test(message)) return null;
+      return { error: message };
     }
     const bytes = entries.reduce((s, [, size]) => s + (size ?? 0), 0);
     db.removeDecisions(ids);
