@@ -169,7 +169,7 @@ function SwipeScreen() {
 
       <TrashSheet
         visible={trashOpen}
-        ids={[...deck.trash.keys()].reverse()}
+        ids={trashOpen ? [...deck.trash.keys()].reverse() : []}
         bytes={deck.trashBytes}
         onClose={() => setTrashOpen(false)}
         onRestore={deck.restore}

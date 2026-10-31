@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useImperativeHandle, useState, type Ref } from 'react';
+import { memo, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState, type Ref } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Animated, {
   Extrapolation,
@@ -39,16 +39,21 @@ export function CardStack({ ids, getMeta, onSwipe, undone, ref }: Props) {
   const [size, setSize] = useState({ w: 0, h: 0 });
   const [leaving, setLeaving] = useState<Leaving[]>([]);
 
-  const commit = useCallback(
-    (action: SwipeAction, x: number, y: number, vx: number, vy: number) => {
-      const id = ids[0];
-      if (!id) return;
-      Haptics.impactAsync(action === 'trash' ? Haptics.ImpactFeedbackStyle.Medium : Haptics.ImpactFeedbackStyle.Light);
-      setLeaving((l) => [...l, { key: `${id}-${Date.now()}`, id, action, x, y, vx, vy }]);
-      onSwipe(action);
-    },
-    [ids, onSwipe]
-  );
+  // Stabiele callback (via refs), zodat kaarten niet bij elke swipe opnieuw renderen.
+  const idsRef = useRef(ids);
+  const onSwipeRef = useRef(onSwipe);
+  useLayoutEffect(() => {
+    idsRef.current = ids;
+    onSwipeRef.current = onSwipe;
+  }, [ids, onSwipe]);
+
+  const commit = useCallback((action: SwipeAction, x: number, y: number, vx: number, vy: number) => {
+    const id = idsRef.current[0];
+    if (!id) return;
+    Haptics.impactAsync(action === 'trash' ? Haptics.ImpactFeedbackStyle.Medium : Haptics.ImpactFeedbackStyle.Light);
+    setLeaving((l) => [...l, { key: `${id}-${Date.now()}`, id, action, x, y, vx, vy }]);
+    onSwipeRef.current(action);
+  }, []);
 
   useImperativeHandle(ref, () => ({ swipe: (action) => commit(action, 0, 0, 0, 0) }), [commit]);
 
@@ -95,7 +100,7 @@ function startOffset(action: SwipeAction | null, size: { w: number; h: number })
   return { x: 0, y: 0 };
 }
 
-function Card({ meta, index, size, onCommit, enterFrom }: CardProps) {
+const Card = memo(function Card({ meta, index, size, onCommit, enterFrom }: CardProps) {
   const start = startOffset(enterFrom, size);
   const x = useSharedValue(start.x);
   const y = useSharedValue(start.y);
@@ -178,7 +183,7 @@ function Card({ meta, index, size, onCommit, enterFrom }: CardProps) {
       </Animated.View>
     </GestureDetector>
   );
-}
+});
 
 function LeavingCard({
   item,
@@ -195,7 +200,7 @@ function LeavingCard({
   const y = useSharedValue(item.y);
 
   useEffect(() => {
-    const D = 260;
+    const D = 200;
     const done = (finished?: boolean) => {
       'worklet';
       if (finished) scheduleOnRN(onDone, item.key);
@@ -306,10 +311,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
-    shadowColor: '#000',
-    shadowOpacity: 0.4,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 8 },
   },
   stamp: {
     position: 'absolute',

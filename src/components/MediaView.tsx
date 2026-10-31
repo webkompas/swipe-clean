@@ -33,10 +33,6 @@ function MediaViewBase({ meta, active }: Props) {
 
   return (
     <View style={StyleSheet.absoluteFill}>
-      {/* Wazige achtergrond zodat staande en liggende foto's mooi gevuld zijn */}
-      <Image source={src} style={StyleSheet.absoluteFill} contentFit="cover" blurRadius={40} recyclingKey={meta.id + 'bg'} />
-      <View style={[StyleSheet.absoluteFill, styles.dim]} />
-
       {isVideo && active ? (
         <VideoLayer id={meta.id} poster={src} duration={meta.duration} />
       ) : (
@@ -50,7 +46,14 @@ function MediaViewBase({ meta, active }: Props) {
           }}
           onPressOut={() => setLivePlaying(false)}
         >
-          <Image source={src} style={StyleSheet.absoluteFill} contentFit="contain" transition={120} recyclingKey={meta.id} />
+          <Image
+            source={src}
+            style={StyleSheet.absoluteFill}
+            contentFit="contain"
+            cachePolicy="memory"
+            priority={active ? 'high' : 'normal'}
+            recyclingKey={meta.id}
+          />
           {livePlaying && liveUri ? <LiveLayer uri={liveUri} /> : null}
         </Pressable>
       )}
@@ -105,7 +108,7 @@ function VideoLayer({ id, poster, duration }: { id: string; poster: string; dura
 
   return (
     <Pressable style={StyleSheet.absoluteFill} onPress={toggleSound}>
-      <Image source={poster} style={StyleSheet.absoluteFill} contentFit="contain" />
+      <Image source={poster} style={StyleSheet.absoluteFill} contentFit="contain" cachePolicy="memory" />
       <VideoView player={player} style={StyleSheet.absoluteFill} contentFit="contain" nativeControls={false} />
       <View style={styles.sound}>
         <Ionicons name={muted ? 'volume-mute' : 'volume-high'} size={18} color="#fff" />
@@ -132,7 +135,6 @@ function LiveLayer({ uri }: { uri: string }) {
 export const MediaView = memo(MediaViewBase);
 
 const styles = StyleSheet.create({
-  dim: { backgroundColor: 'rgba(0,0,0,0.45)' },
   badge: {
     position: 'absolute',
     top: 14,

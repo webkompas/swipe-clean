@@ -130,13 +130,17 @@ export function useDeck(enabled: boolean) {
       const t = new Map(trashRef.current);
       t.set(id, null);
       commitTrash(t);
-      getAssetSize(id).then((size) => {
-        if (size == null || !trashRef.current.has(id)) return;
-        db.setSize(id, size);
-        const t2 = new Map(trashRef.current);
-        t2.set(id, size);
-        commitTrash(t2);
-      });
+      // Pas na de animatie de bestandsgrootte bepalen, zodat swipen vloeiend blijft.
+      setTimeout(() => {
+        if (!trashRef.current.has(id)) return;
+        getAssetSize(id).then((size) => {
+          if (size == null || !trashRef.current.has(id)) return;
+          db.setSize(id, size);
+          const t2 = new Map(trashRef.current);
+          t2.set(id, size);
+          commitTrash(t2);
+        });
+      }, 700);
     }
     commitQueue(rest);
     history.current = [...history.current, { id, action }].slice(-HISTORY_LIMIT);
