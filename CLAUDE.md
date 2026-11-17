@@ -12,9 +12,11 @@ Lees ook `AGENTS.md` (Expo-regels) en `README.md` (functies en structuur).
 - Tinder-achtig: ← = prullenbak, → = behouden (komt nooit meer terug), ↑ = later beslissen (komt willekeurig terug, telt niet als bekeken).
 - **Volledig willekeurig** (Fisher–Yates over alle foto's en video's), geen categorieën/filters, datum en album spelen geen rol.
 - Echt wissen via de prullenbak (één iOS-bevestiging, items 30 dagen in "Recent verwijderd").
-- Ongedaan maken (50 stappen), voortgang "x / y bekeken", vrij te maken ruimte, felicitatie na het legen, herinnering per 50 items in de prullenbak.
+- Ongedaan maken (50 stappen), voortgang "x / y bekeken", vrij te maken ruimte.
+- **Rondes van 10** (v2, geïnspireerd op een Picnic-advertentie, eigen stijl): fotostrip "x VAN 10" onderin; na elke ronde een rondescherm met "Nu wissen" (één iOS-bevestiging) of "Later wissen". Feestscherm met totaal vrijgemaakt in een ring + delen (Share-sheet).
+- Scherm kleurt mee tijdens swipen (rood/groen/blauw), groot label midden op de kaart.
 - Video's (autoplay zonder geluid, tik voor geluid), Live Photos (ingedrukt houden), bursts (als één kaart; wisgedrag nog niet geverifieerd).
-- Donker minimalistisch thema, Nederlandstalig, datum + plaatsnaam op de kaart, "Galerij doorgewerkt!"-scherm, reset behouden in Overzicht.
+- Donker blauw-paars verloop (`expo-linear-gradient`, `gradient` in `theme.ts`), Nederlandstalig, datum + plaatsnaam op de kaart, "Galerij doorgewerkt!"-scherm, reset behouden in Overzicht.
 - Eigen app-icoon en opstartscherm (`assets/`).
 
 ## Technisch

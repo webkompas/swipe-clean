@@ -5,6 +5,7 @@ import Animated, {
   interpolate,
   useAnimatedStyle,
   useSharedValue,
+  withSequence,
   withSpring,
   withTiming,
   type SharedValue,
@@ -24,8 +25,11 @@ export type CardStackHandle = { swipe: (action: SwipeAction) => void };
 
 type Leaving = { key: string; id: string; action: SwipeAction; x: number; y: number; vx: number; vy: number };
 
+export type Drag = { x: SharedValue<number>; y: SharedValue<number> };
+
 type Props = {
   ids: string[];
+  drag: Drag;
   getMeta: (id: string) => AssetMetadata | undefined;
   onSwipe: (action: SwipeAction) => void;
   undone: { id: string; action: SwipeAction } | null;
@@ -35,25 +39,37 @@ type Props = {
 const VISIBLE = 3;
 const SPRING = { damping: 18, stiffness: 180, mass: 0.9 };
 
-export function CardStack({ ids, getMeta, onSwipe, undone, ref }: Props) {
+export function CardStack({ ids, drag, getMeta, onSwipe, undone, ref }: Props) {
   const [size, setSize] = useState({ w: 0, h: 0 });
   const [leaving, setLeaving] = useState<Leaving[]>([]);
 
   // Stabiele callback (via refs), zodat kaarten niet bij elke swipe opnieuw renderen.
   const idsRef = useRef(ids);
   const onSwipeRef = useRef(onSwipe);
+  const sizeRef = useRef(size);
   useLayoutEffect(() => {
     idsRef.current = ids;
     onSwipeRef.current = onSwipe;
-  }, [ids, onSwipe]);
+    sizeRef.current = size;
+  }, [ids, onSwipe, size]);
 
   const commit = useCallback((action: SwipeAction, x: number, y: number, vx: number, vy: number) => {
     const id = idsRef.current[0];
     if (!id) return;
     Haptics.impactAsync(action === 'trash' ? Haptics.ImpactFeedbackStyle.Medium : Haptics.ImpactFeedbackStyle.Light);
+    // Schermkleur: bij een knop kort laten oplichten, na een swipe rustig laten uitfaden.
+    const { w, h } = sizeRef.current;
+    const flash = (v: SharedValue<number>, to: number) => v.set(withSequence(withTiming(to, { duration: 110 }), withTiming(0, { duration: 320 })));
+    if (x === 0 && y === 0) {
+      if (action === 'later') flash(drag.y, -h * 0.2);
+      else flash(drag.x, (action === 'keep' ? 1 : -1) * w * 0.35);
+    } else {
+      drag.x.set(withTiming(0, { duration: 320 }));
+      drag.y.set(withTiming(0, { duration: 320 }));
+    }
     setLeaving((l) => [...l, { key: `${id}-${Date.now()}`, id, action, x, y, vx, vy }]);
     onSwipeRef.current(action);
-  }, []);
+  }, [drag]);
 
   useImperativeHandle(ref, () => ({ swipe: (action) => commit(action, 0, 0, 0, 0) }), [commit]);
 
@@ -70,7 +86,7 @@ export function CardStack({ ids, getMeta, onSwipe, undone, ref }: Props) {
             if (!meta) return null;
             const enterFrom = index === 0 && undone?.id === id ? undone.action : null;
             return (
-              <Card key={id} meta={meta} index={index} size={size} onCommit={commit} enterFrom={enterFrom} />
+              <Card key={id} meta={meta} index={index} size={size} drag={drag} onCommit={commit} enterFrom={enterFrom} />
             );
           })
           .reverse()}
@@ -89,6 +105,7 @@ type CardProps = {
   meta: AssetMetadata;
   index: number;
   size: { w: number; h: number };
+  drag: Drag;
   onCommit: (action: SwipeAction, x: number, y: number, vx: number, vy: number) => void;
   enterFrom: SwipeAction | null;
 };
@@ -100,7 +117,7 @@ function startOffset(action: SwipeAction | null, size: { w: number; h: number })
   return { x: 0, y: 0 };
 }
 
-const Card = memo(function Card({ meta, index, size, onCommit, enterFrom }: CardProps) {
+const Card = memo(function Card({ meta, index, size, drag, onCommit, enterFrom }: CardProps) {
   const start = startOffset(enterFrom, size);
   const x = useSharedValue(start.x);
   const y = useSharedValue(start.y);
@@ -131,6 +148,8 @@ const Card = memo(function Card({ meta, index, size, onCommit, enterFrom }: Card
       'worklet';
       x.set(e.translationX);
       y.set(e.translationY);
+      drag.x.set(e.translationX);
+      drag.y.set(e.translationY);
       const next =
         -e.translationY > thresholdY && Math.abs(e.translationX) < thresholdX
           ? 3
@@ -157,6 +176,8 @@ const Card = memo(function Card({ meta, index, size, onCommit, enterFrom }: Card
       } else {
         x.set(withSpring(0, SPRING));
         y.set(withSpring(0, SPRING));
+        drag.x.set(withSpring(0, SPRING));
+        drag.y.set(withSpring(0, SPRING));
       }
     },
   });
@@ -254,19 +275,31 @@ function Stamps({
   }));
   return (
     <>
-      <Animated.View style={[styles.stamp, styles.stampLeft, { borderColor: colors.keep }, keep]}>
-        <Ionicons name="checkmark" size={26} color={colors.keep} />
-        <Text style={[styles.stampText, { color: colors.keep }]}>BEHOUDEN</Text>
-      </Animated.View>
-      <Animated.View style={[styles.stamp, styles.stampRight, { borderColor: colors.trash }, trash]}>
-        <Ionicons name="trash" size={22} color={colors.trash} />
-        <Text style={[styles.stampText, { color: colors.trash }]}>WISSEN</Text>
-      </Animated.View>
-      <Animated.View style={[styles.stamp, styles.stampBottom, { borderColor: colors.later }, later]}>
-        <Ionicons name="time" size={22} color={colors.later} />
-        <Text style={[styles.stampText, { color: colors.later }]}>LATER</Text>
-      </Animated.View>
+      <Stamp style={keep} color={colors.keep} icon="thumbs-up" label="Behouden" />
+      <Stamp style={trash} color={colors.trash} icon="trash" label="Wissen" />
+      <Stamp style={later} color={colors.later} icon="time" label="Later" />
     </>
+  );
+}
+
+function Stamp({
+  style,
+  color,
+  icon,
+  label,
+}: {
+  style: ReturnType<typeof useAnimatedStyle>;
+  color: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+}) {
+  return (
+    <Animated.View style={[StyleSheet.absoluteFill, styles.stamp, style]} pointerEvents="none">
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: color, opacity: 0.28 }]} />
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.35)' }]} />
+      <Ionicons name={icon} size={64} color={color} />
+      <Text style={[styles.stampText, { color }]}>{label}</Text>
+    </Animated.View>
   );
 }
 
@@ -312,21 +345,8 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
   },
-  stamp: {
-    position: 'absolute',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderWidth: 3,
-    borderRadius: 14,
-    backgroundColor: 'rgba(0,0,0,0.55)',
-  },
-  stampLeft: { top: 40, left: 20, transform: [{ rotate: '-12deg' }] },
-  stampRight: { top: 40, right: 20, transform: [{ rotate: '12deg' }] },
-  stampBottom: { bottom: 110, alignSelf: 'center' },
-  stampText: { fontSize: 22, fontWeight: '900', letterSpacing: 1.5 },
+  stamp: { alignItems: 'center', justifyContent: 'center', gap: 6 },
+  stampText: { fontSize: 40, fontWeight: '900', letterSpacing: 0.5, transform: [{ rotate: '-8deg' }] },
   footer: {
     position: 'absolute',
     left: 0,

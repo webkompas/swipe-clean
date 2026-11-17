@@ -115,7 +115,7 @@ export function useDeck(enabled: boolean) {
     };
   }, [enabled, reload, sync]);
 
-  const swipe = useCallback((action: SwipeAction) => {
+  const swipe = useCallback((action: SwipeAction): string | undefined => {
     const [id, ...rest] = queueRef.current;
     if (!id) return;
     if (action === 'later') {
@@ -146,6 +146,7 @@ export function useDeck(enabled: boolean) {
     history.current = [...history.current, { id, action }].slice(-HISTORY_LIMIT);
     setCanUndo(true);
     setLastUndone(null);
+    return id;
   }, []);
 
   const undo = useCallback(() => {

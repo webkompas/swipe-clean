@@ -1,9 +1,12 @@
 import { useEffect } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue, withDelay, withSequence, withSpring } from 'react-native-reanimated';
+import { Modal, Pressable, Share, StyleSheet, Text, View } from 'react-native';
+import Animated, { useAnimatedStyle, useSharedValue, withDelay, withSpring } from 'react-native-reanimated';
+import { LinearGradient } from 'expo-linear-gradient';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { formatBytes, formatNumber } from '../format';
-import { colors } from '../theme';
+import { brightGradient } from '../theme';
 
 type Props = {
   result: { count: number; bytes: number } | null;
@@ -12,53 +15,114 @@ type Props = {
   onClose: () => void;
 };
 
+function splitBytes(bytes: number): [string, string] {
+  const [num, unit] = formatBytes(bytes).split(' ');
+  return [num, unit ?? ''];
+}
+
 export function Celebration({ result, totalBytes, totalCount, onClose }: Props) {
-  const scale = useSharedValue(0.6);
-  const emoji = useSharedValue(0);
+  const ring = useSharedValue(0.5);
+  const fade = useSharedValue(0);
 
   useEffect(() => {
     if (!result) return;
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    scale.value = 0.6;
-    scale.value = withSpring(1, { damping: 11, stiffness: 160 });
-    emoji.value = 0;
-    emoji.value = withDelay(150, withSequence(withSpring(1.3, { damping: 6 }), withSpring(1)));
-  }, [result, scale, emoji]);
+    ring.set(0.5);
+    ring.set(withSpring(1, { damping: 10, stiffness: 120 }));
+    fade.set(0);
+    fade.set(withDelay(200, withSpring(1)));
+  }, [result, ring, fade]);
 
-  const cardStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
-  const emojiStyle = useAnimatedStyle(() => ({ transform: [{ scale: emoji.value }] }));
+  const ringStyle = useAnimatedStyle(() => ({ transform: [{ scale: ring.value }] }));
+  const fadeStyle = useAnimatedStyle(() => ({ opacity: fade.value }));
+
+  const showBytes = totalBytes > 0;
+  const [num, unit] = showBytes ? splitBytes(totalBytes) : [formatNumber(totalCount), totalCount === 1 ? 'item' : 'items'];
+  const just = result ? (result.bytes > 0 ? formatBytes(result.bytes) : `${formatNumber(result.count)} items`) : '';
+
+  const share = () => {
+    Share.share({
+      message: showBytes
+        ? `Ik heb al ${formatBytes(totalBytes)} vrijgemaakt op mijn iPhone met Swipe Clean 🧹📸`
+        : `Ik heb al ${formatNumber(totalCount)} foto's opgeruimd met Swipe Clean 🧹📸`,
+    }).catch(() => {});
+  };
 
   return (
-    <Modal visible={!!result} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={styles.backdrop} onPress={onClose}>
-        <Animated.View style={[styles.card, cardStyle]}>
-          <Animated.Text style={[styles.emoji, emojiStyle]}>🎉</Animated.Text>
-          <Text style={styles.big}>
-            {result && result.bytes > 0 ? `${formatBytes(result.bytes)} vrijgemaakt` : `${formatNumber(result?.count ?? 0)} items gewist`}
-          </Text>
-          {result && result.bytes > 0 ? <Text style={styles.sub}>{formatNumber(result.count)} items gewist</Text> : null}
-          <View style={styles.divider} />
-          <Text style={styles.total}>
-            Totaal opgeruimd: <Text style={styles.totalStrong}>{formatBytes(totalBytes)}</Text> · {formatNumber(totalCount)} items
-          </Text>
-          <View style={styles.btn}>
-            <Text style={styles.btnText}>Verder swipen</Text>
+    <Modal visible={!!result} animationType="fade" presentationStyle="fullScreen" onRequestClose={onClose}>
+      <LinearGradient colors={brightGradient} style={styles.flex}>
+        <SafeAreaView style={styles.root}>
+          <View style={styles.top}>
+            <Text style={styles.title}>Lekker bezig!</Text>
+            <Text style={styles.sub}>Je hebt net {just} vrijgemaakt.</Text>
           </View>
-        </Animated.View>
-      </Pressable>
+
+          <Animated.View style={[styles.ring, ringStyle]}>
+            <View style={styles.ringInner}>
+              <Text style={styles.num} adjustsFontSizeToFit numberOfLines={1}>
+                {num}
+              </Text>
+              <Text style={styles.unit}>{unit}</Text>
+              <Text style={styles.caption}>totaal vrijgemaakt</Text>
+            </View>
+          </Animated.View>
+
+          <Animated.View style={[styles.bottom, fadeStyle]}>
+            <Pressable style={styles.share} onPress={share}>
+              <Ionicons name="share-outline" size={20} color="#fff" />
+              <Text style={styles.shareText}>Deel je resultaat</Text>
+            </Pressable>
+            <Pressable style={styles.primary} onPress={onClose}>
+              <Text style={styles.primaryText}>Doorgaan</Text>
+            </Pressable>
+          </Animated.View>
+        </SafeAreaView>
+      </LinearGradient>
     </Modal>
   );
 }
 
+const RING = 250;
+
 const styles = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', alignItems: 'center', justifyContent: 'center', padding: 24 },
-  card: { width: '100%', backgroundColor: colors.card, borderRadius: 28, padding: 28, alignItems: 'center', gap: 6 },
-  emoji: { fontSize: 64, marginBottom: 8 },
-  big: { color: colors.text, fontSize: 26, fontWeight: '900', textAlign: 'center' },
-  sub: { color: colors.textDim, fontSize: 15 },
-  divider: { height: StyleSheet.hairlineWidth, alignSelf: 'stretch', backgroundColor: colors.border, marginVertical: 14 },
-  total: { color: colors.textDim, fontSize: 14, textAlign: 'center' },
-  totalStrong: { color: colors.keep, fontWeight: '800' },
-  btn: { marginTop: 18, alignSelf: 'stretch', height: 52, borderRadius: 16, backgroundColor: colors.keep, alignItems: 'center', justifyContent: 'center' },
-  btnText: { color: '#04140B', fontSize: 16, fontWeight: '800' },
+  flex: { flex: 1 },
+  root: { flex: 1, padding: 24, alignItems: 'center', justifyContent: 'space-between' },
+  top: { alignItems: 'center', gap: 6, marginTop: 24 },
+  title: { color: '#fff', fontSize: 32, fontWeight: '900' },
+  sub: { color: 'rgba(255,255,255,0.85)', fontSize: 16 },
+  ring: {
+    width: RING,
+    height: RING,
+    borderRadius: RING / 2,
+    borderWidth: 10,
+    borderColor: 'rgba(255,255,255,0.9)',
+    padding: 10,
+    shadowColor: '#fff',
+    shadowOpacity: 0.5,
+    shadowRadius: 24,
+  },
+  ringInner: {
+    flex: 1,
+    borderRadius: RING / 2,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+  },
+  num: { color: '#fff', fontSize: 72, fontWeight: '900', fontVariant: ['tabular-nums'] },
+  unit: { color: '#fff', fontSize: 24, fontWeight: '800', marginTop: -6 },
+  caption: { color: 'rgba(255,255,255,0.8)', fontSize: 13, marginTop: 6 },
+  bottom: { alignSelf: 'stretch', gap: 12 },
+  share: {
+    flexDirection: 'row',
+    gap: 8,
+    height: 52,
+    borderRadius: 26,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.18)',
+  },
+  shareText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  primary: { height: 56, borderRadius: 28, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' },
+  primaryText: { color: '#3B2FB8', fontSize: 17, fontWeight: '800' },
 });
